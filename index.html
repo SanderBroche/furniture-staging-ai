@@ -1,0 +1,1024 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Furniture Staging AI</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300&family=DM+Mono:wght@300;400&display=swap');
+
+  :root {
+    --cream: #f5f0e8;
+    --warm: #e8ddc8;
+    --ochre: #c4965a;
+    --deep: #2a2118;
+    --mid: #6b5840;
+    --light: #f9f5ee;
+    --accent: #b8733a;
+    --subtle: #d4c8b0;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--deep);
+    color: var(--cream);
+    font-family: 'Cormorant Garamond', serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Grain overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 1000;
+    opacity: 0.4;
+  }
+
+  /* ── HERO ─────────────────────────────────────────────────────────────── */
+  .hero {
+    padding: 80px 64px 72px;
+    border-bottom: 1px solid rgba(196,150,90,0.15);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 24px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hero::after {
+    content: '';
+    position: absolute;
+    right: -120px;
+    top: -120px;
+    width: 500px;
+    height: 500px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(196,150,90,0.06) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .hero-eyebrow {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--ochre);
+  }
+
+  .hero-title {
+    font-size: clamp(38px, 5vw, 64px);
+    font-weight: 300;
+    line-height: 1.1;
+    color: var(--cream);
+  }
+
+  .hero-title em {
+    font-style: italic;
+    color: var(--ochre);
+  }
+
+  .hero-sub {
+    font-size: 16px;
+    font-weight: 300;
+    font-style: italic;
+    color: var(--mid);
+    max-width: 520px;
+    line-height: 1.7;
+  }
+
+  .hero-steps {
+    display: flex;
+    gap: 32px;
+    margin-top: 8px;
+    flex-wrap: wrap;
+  }
+
+  .hero-step {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .hero-step-num {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    color: var(--ochre);
+    background: rgba(196,150,90,0.1);
+    border: 1px solid rgba(196,150,90,0.25);
+    padding: 4px 10px;
+    border-radius: 1px;
+  }
+
+  .hero-step-label {
+    font-size: 13px;
+    font-style: italic;
+    color: var(--mid);
+  }
+
+  /* ── MAIN LAYOUT ─────────────────────────────────────────────────────── */
+  .main {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    min-height: calc(100vh - 300px);
+  }
+
+  /* ── LEFT PANEL ──────────────────────────────────────────────────────── */
+  .left-panel {
+    padding: 56px 64px;
+    border-right: 1px solid rgba(196,150,90,0.15);
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+  }
+
+  .step-indicator {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .step-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: rgba(196,150,90,0.3);
+    transition: all 0.4s ease;
+  }
+
+  .step-dot.active {
+    background: var(--ochre);
+    width: 24px;
+    border-radius: 3px;
+  }
+
+  .step-dot.done {
+    background: rgba(196,150,90,0.6);
+  }
+
+  .section-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--ochre);
+    margin-bottom: 12px;
+  }
+
+  /* ── UPLOAD ZONE ─────────────────────────────────────────────────────── */
+  .upload-zone {
+    border: 1px dashed rgba(196,150,90,0.4);
+    border-radius: 2px;
+    padding: 48px 32px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: rgba(196,150,90,0.03);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .upload-zone:hover {
+    border-color: var(--ochre);
+    background: rgba(196,150,90,0.06);
+  }
+
+  .upload-zone.drag-over {
+    border-color: var(--ochre);
+    background: rgba(196,150,90,0.08);
+  }
+
+  .upload-zone.has-image {
+    padding: 0;
+    border-style: solid;
+    border-color: rgba(196,150,90,0.5);
+  }
+
+  .upload-zone img {
+    width: 100%;
+    max-height: 320px;
+    object-fit: contain;
+    display: block;
+  }
+
+  .upload-icon {
+    font-size: 36px;
+    color: var(--ochre);
+    margin-bottom: 12px;
+    font-weight: 300;
+    font-style: italic;
+    line-height: 1;
+  }
+
+  .upload-label {
+    font-size: 15px;
+    color: var(--cream);
+    font-weight: 300;
+    font-style: italic;
+    margin-bottom: 8px;
+  }
+
+  .upload-sub {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--mid);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+
+  .upload-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(42,33,24,0.75);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  .upload-zone.has-image:hover .upload-overlay { opacity: 1; }
+
+  .upload-overlay span {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--ochre);
+  }
+
+  #file-input { display: none; }
+
+  /* ── BUTTONS ─────────────────────────────────────────────────────────── */
+  .btn-primary {
+    background: var(--ochre);
+    color: var(--deep);
+    border: none;
+    padding: 16px 32px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border-radius: 1px;
+    width: 100%;
+  }
+
+  .btn-primary:hover {
+    background: var(--accent);
+    color: var(--cream);
+    transform: translateY(-1px);
+    box-shadow: 0 8px 32px rgba(184,115,58,0.3);
+  }
+
+  .btn-primary:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  .btn-copy {
+    background: none;
+    border: 1px solid rgba(196,150,90,0.3);
+    color: var(--mid);
+    padding: 6px 14px;
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.3s;
+    border-radius: 1px;
+  }
+
+  .btn-copy:hover {
+    border-color: var(--ochre);
+    color: var(--ochre);
+  }
+
+  /* ── CHOICE CARDS ────────────────────────────────────────────────────── */
+  .choice-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .choice-card {
+    border: 1px solid rgba(196,150,90,0.2);
+    padding: 20px 18px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border-radius: 1px;
+    background: rgba(196,150,90,0.02);
+  }
+
+  .choice-card:hover {
+    border-color: rgba(196,150,90,0.6);
+    background: rgba(196,150,90,0.05);
+  }
+
+  .choice-card.selected {
+    border-color: var(--ochre);
+    background: rgba(196,150,90,0.1);
+  }
+
+  .choice-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--cream);
+    margin-bottom: 6px;
+  }
+
+  .choice-card.selected .choice-title { color: var(--ochre); }
+
+  .choice-desc {
+    font-size: 12px;
+    font-style: italic;
+    color: var(--mid);
+    line-height: 1.5;
+  }
+
+  /* ── RIGHT PANEL ─────────────────────────────────────────────────────── */
+  .right-panel {
+    padding: 56px 64px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .output-block {
+    background: rgba(196,150,90,0.03);
+    border: 1px solid rgba(196,150,90,0.12);
+    border-radius: 2px;
+    overflow: hidden;
+    transition: border-color 0.3s;
+  }
+
+  .output-block.active { border-color: rgba(196,150,90,0.3); }
+
+  .output-block-header {
+    padding: 14px 20px;
+    border-bottom: 1px solid rgba(196,150,90,0.12);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .output-block-header .label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--ochre);
+  }
+
+  .output-block-body {
+    padding: 24px;
+    min-height: 80px;
+  }
+
+  .output-text {
+    font-size: 15px;
+    line-height: 1.8;
+    color: var(--cream);
+    font-weight: 300;
+  }
+
+  .output-text.placeholder {
+    color: rgba(107,88,64,0.5);
+    font-style: italic;
+  }
+
+  .output-text.mono {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    line-height: 1.9;
+    color: var(--warm);
+    white-space: pre-wrap;
+  }
+
+  /* ── LOADING ─────────────────────────────────────────────────────────── */
+  .loading-dots {
+    display: inline-flex;
+    gap: 4px;
+    align-items: center;
+  }
+
+  .loading-dots span {
+    width: 4px;
+    height: 4px;
+    background: var(--ochre);
+    border-radius: 50%;
+    animation: pulse 1.4s ease-in-out infinite;
+  }
+
+  .loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+  @keyframes pulse {
+    0%, 60%, 100% { opacity: 0.2; transform: scale(0.8); }
+    30% { opacity: 1; transform: scale(1.2); }
+  }
+
+  /* ── PROGRESS ────────────────────────────────────────────────────────── */
+  .progress-bar {
+    height: 1px;
+    background: rgba(196,150,90,0.15);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: var(--ochre);
+    width: 0%;
+    transition: width 0.6s ease;
+  }
+
+  /* ── BADGE ───────────────────────────────────────────────────────────── */
+  .badge {
+    display: inline-block;
+    background: rgba(196,150,90,0.15);
+    color: var(--ochre);
+    font-family: 'DM Mono', monospace;
+    font-size: 8px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 1px;
+    margin-left: 8px;
+  }
+
+  /* ── ERROR ───────────────────────────────────────────────────────────── */
+  .error-msg {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: #e07060;
+    letter-spacing: 0.05em;
+    line-height: 1.6;
+  }
+
+  /* ── SECTION TITLE ───────────────────────────────────────────────────── */
+  .section-title {
+    font-size: 28px;
+    font-weight: 300;
+    font-style: italic;
+    color: var(--cream);
+    line-height: 1.2;
+  }
+
+  .section-title span { color: var(--ochre); }
+
+  .italic-note {
+    font-size: 13px;
+    font-style: italic;
+    color: var(--mid);
+    line-height: 1.7;
+  }
+
+  /* ── FOOTER ──────────────────────────────────────────────────────────── */
+  .footer {
+    border-top: 1px solid rgba(196,150,90,0.12);
+    padding: 32px 64px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+  }
+
+  .footer-left {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--mid);
+  }
+
+  .footer-right {
+    font-size: 12px;
+    font-style: italic;
+    color: rgba(107,88,64,0.5);
+  }
+
+  /* ── ANIMATIONS ──────────────────────────────────────────────────────── */
+  .fade-in {
+    animation: fadeIn 0.5s ease forwards;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── SCROLLBAR ───────────────────────────────────────────────────────── */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--deep); }
+  ::-webkit-scrollbar-thumb { background: rgba(196,150,90,0.3); border-radius: 2px; }
+
+  /* ── MISC ────────────────────────────────────────────────────────────── */
+  .hidden { display: none; }
+
+  .step-section { transition: all 0.4s ease; }
+
+  /* ── RESPONSIVE ──────────────────────────────────────────────────────── */
+  @media (max-width: 960px) {
+    .hero { padding: 48px 32px 40px; }
+    .hero-steps { gap: 16px; }
+    .main { grid-template-columns: 1fr; }
+    .left-panel, .right-panel { padding: 40px 32px; }
+    .left-panel { border-right: none; border-bottom: 1px solid rgba(196,150,90,0.15); }
+    .choice-grid { grid-template-columns: 1fr; }
+    .footer { padding: 24px 32px; flex-direction: column; align-items: flex-start; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ── HERO ─────────────────────────────────────────────────────────────────── -->
+<section class="hero">
+  <div class="hero-eyebrow">Furniture Staging AI</div>
+  <h1 class="hero-title">
+    Transform any space into<br>
+    a <em>perfect stage</em>
+  </h1>
+  <p class="hero-sub">
+    Upload a photo of any environment — a room, terrace, loft or garden.
+    Our AI analyses the setting in detail and generates a master prompt
+    to place your furniture in it with photorealistic precision.
+  </p>
+  <div class="hero-steps">
+    <div class="hero-step">
+      <span class="hero-step-num">01</span>
+      <span class="hero-step-label">Upload setting image</span>
+    </div>
+    <div class="hero-step">
+      <span class="hero-step-num">02</span>
+      <span class="hero-step-label">Choose camera angle</span>
+    </div>
+    <div class="hero-step">
+      <span class="hero-step-num">03</span>
+      <span class="hero-step-label">Choose furniture placement</span>
+    </div>
+    <div class="hero-step">
+      <span class="hero-step-num">04</span>
+      <span class="hero-step-label">Copy master prompt</span>
+    </div>
+  </div>
+</section>
+
+<!-- ── MAIN ──────────────────────────────────────────────────────────────────── -->
+<div class="main">
+
+  <!-- LEFT: INPUT PANEL -->
+  <div class="left-panel">
+
+    <div class="step-indicator" id="step-indicator">
+      <div class="step-dot active" id="dot-1"></div>
+      <div class="step-dot" id="dot-2"></div>
+      <div class="step-dot" id="dot-3"></div>
+    </div>
+
+    <!-- STEP 1: Upload -->
+    <div class="step-section" id="step-1">
+      <div class="section-label">Step 01 — Environment</div>
+      <div class="section-title">Upload the <span>setting</span><br>image</div>
+      <p class="italic-note">Provide a photo of the room or environment where the furniture will be placed. JPEG, PNG or WebP — max 20 MB.</p>
+
+      <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()">
+        <div class="upload-icon">+</div>
+        <div class="upload-label">Drop or click to upload</div>
+        <div class="upload-sub">jpeg · png · webp</div>
+        <div class="upload-overlay"><span>Change image</span></div>
+      </div>
+      <input type="file" id="file-input" accept="image/*">
+
+      <button class="btn-primary" id="btn-analyze" disabled onclick="analyzeImage()">
+        Analyse environment →
+      </button>
+    </div>
+
+    <!-- STEP 2: Camera angle -->
+    <div class="step-section hidden" id="step-2">
+      <div class="section-label">Step 02 — Camera angle</div>
+      <div class="section-title">Choose the <span>camera</span><br>composition</div>
+      <div class="choice-grid" id="angle-grid"></div>
+      <button class="btn-primary" id="btn-angle" disabled onclick="confirmAngle()">
+        Confirm camera angle →
+      </button>
+    </div>
+
+    <!-- STEP 3: Placement -->
+    <div class="step-section hidden" id="step-3">
+      <div class="section-label">Step 03 — Placement</div>
+      <div class="section-title">Choose the <span>placement</span><br>of the furniture</div>
+      <div class="choice-grid" id="placement-grid"></div>
+      <button class="btn-primary" id="btn-placement" disabled onclick="generatePrompt()">
+        Generate master prompt →
+      </button>
+    </div>
+
+  </div>
+
+  <!-- RIGHT: OUTPUT PANEL -->
+  <div class="right-panel">
+
+    <!-- Description -->
+    <div class="output-block" id="block-description">
+      <div class="output-block-header">
+        <span class="label">Environment analysis</span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" id="prog-desc"></div></div>
+      <div class="output-block-body">
+        <div class="output-text placeholder" id="desc-text">
+          Upload an image to analyse the environment...
+        </div>
+      </div>
+    </div>
+
+    <!-- Camera angles -->
+    <div class="output-block hidden" id="block-camera">
+      <div class="output-block-header">
+        <span class="label">Recommended camera angles</span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" id="prog-camera"></div></div>
+      <div class="output-block-body">
+        <div class="output-text placeholder" id="camera-text">
+          Waiting for environment analysis...
+        </div>
+      </div>
+    </div>
+
+    <!-- Placement -->
+    <div class="output-block hidden" id="block-placement">
+      <div class="output-block-header">
+        <span class="label">Recommended placements</span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" id="prog-placement"></div></div>
+      <div class="output-block-body">
+        <div class="output-text placeholder" id="placement-text">
+          Waiting for camera angle selection...
+        </div>
+      </div>
+    </div>
+
+    <!-- Master prompt -->
+    <div class="output-block hidden" id="block-prompt">
+      <div class="output-block-header">
+        <span class="label">Master Prompt</span>
+        <div style="display:flex;gap:8px;">
+          <button class="btn-copy" onclick="copyPrompt()">Copy</button>
+          <button class="btn-copy" onclick="downloadPrompt()">Download</button>
+        </div>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" id="prog-prompt"></div></div>
+      <div class="output-block-body">
+        <div class="output-text mono placeholder" id="prompt-text">
+          Waiting for full selection...
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── FOOTER ─────────────────────────────────────────────────────────────────── -->
+<footer class="footer">
+  <div class="footer-left">Furniture Staging AI — environment analysis & prompt generation</div>
+  <div class="footer-right">Powered by Groq · Llama 4 Scout</div>
+</footer>
+
+<script>
+let uploadedImageBase64 = null;
+let uploadedMimeType = 'image/jpeg';
+let analysisData = null;
+let selectedAngle = null;
+let selectedPlacement = null;
+
+// ── FILE UPLOAD ────────────────────────────────────────────────────────────────
+const fileInput = document.getElementById('file-input');
+const uploadZone = document.getElementById('upload-zone');
+
+fileInput.addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (file) handleFile(file);
+});
+
+uploadZone.addEventListener('dragover', (e) => {
+  e.preventDefault();
+  uploadZone.classList.add('drag-over');
+});
+
+uploadZone.addEventListener('dragleave', () => {
+  uploadZone.classList.remove('drag-over');
+});
+
+uploadZone.addEventListener('drop', (e) => {
+  e.preventDefault();
+  uploadZone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) handleFile(file);
+});
+
+function handleFile(file) {
+  if (!file.type.startsWith('image/')) return;
+  uploadedMimeType = file.type;
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const dataUrl = e.target.result;
+    uploadedImageBase64 = dataUrl.split(',')[1];
+
+    uploadZone.innerHTML = `<img src="${dataUrl}" alt="Uploaded"><div class="upload-overlay"><span>Change image</span></div>`;
+    uploadZone.classList.add('has-image');
+    uploadZone.onclick = () => document.getElementById('file-input').click();
+
+    document.getElementById('btn-analyze').disabled = false;
+    resetFromStep(1);
+  };
+  reader.readAsDataURL(file);
+}
+
+function resetFromStep(step) {
+  if (step <= 1) {
+    selectedAngle = null;
+    selectedPlacement = null;
+    analysisData = null;
+    ['step-2','step-3','block-camera','block-placement','block-prompt'].forEach(id =>
+      document.getElementById(id).classList.add('hidden')
+    );
+    const descEl = document.getElementById('desc-text');
+    descEl.textContent = 'Upload an image to analyse the environment...';
+    descEl.classList.add('placeholder');
+    setDots(1);
+  }
+}
+
+// ── STEP DOTS ──────────────────────────────────────────────────────────────────
+function setDots(activeStep) {
+  for (let i = 1; i <= 3; i++) {
+    const dot = document.getElementById(`dot-${i}`);
+    dot.classList.remove('active', 'done');
+    if (i < activeStep) dot.classList.add('done');
+    else if (i === activeStep) dot.classList.add('active');
+  }
+}
+
+// ── STEP 1: ANALYSE ────────────────────────────────────────────────────────────
+async function analyzeImage() {
+  if (!uploadedImageBase64) return;
+
+  const btn = document.getElementById('btn-analyze');
+  btn.disabled = true;
+  btn.textContent = 'Analysing...';
+
+  const descEl = document.getElementById('desc-text');
+  descEl.classList.remove('placeholder');
+  descEl.innerHTML = '<div class="loading-dots"><span></span><span></span><span></span></div>';
+
+  animateProgress('prog-desc', 6000);
+  document.getElementById('block-description').classList.add('active');
+
+  try {
+    const res = await fetch('/api/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ imageBase64: uploadedImageBase64, mimeType: uploadedMimeType })
+    });
+
+    const json = await res.json();
+
+    if (!json.success) {
+      descEl.innerHTML = `<div class="error-msg">Error: ${json.error}</div>`;
+      btn.textContent = 'Analyse environment →';
+      btn.disabled = false;
+      return;
+    }
+
+    analysisData = json.data;
+
+    // Render 7 paragraphs separately
+    const paragraphs = analysisData.paragraphs || [analysisData.description];
+    descEl.innerHTML = paragraphs.map(p => `<p style="margin-bottom:14px;line-height:1.85;">${p}</p>`).join('');
+    descEl.classList.remove('placeholder');
+    showCameraAngles();
+
+  } catch (err) {
+    descEl.innerHTML = `<div class="error-msg">Connection error. Is the server running?<br>${err.message}</div>`;
+    console.error(err);
+  }
+
+  btn.textContent = 'Analyse environment →';
+  btn.disabled = false;
+}
+
+function showCameraAngles() {
+  setDots(2);
+  document.getElementById('step-2').classList.remove('hidden');
+  document.getElementById('block-camera').classList.remove('hidden');
+  document.getElementById('block-camera').classList.add('active');
+
+  const cameraOutput = document.getElementById('camera-text');
+  cameraOutput.classList.remove('placeholder');
+
+  const standardAngles = analysisData.cameraAngles.filter(a => !a.isAiSpecific);
+  const aiAngles       = analysisData.cameraAngles.filter(a =>  a.isAiSpecific);
+
+  cameraOutput.innerHTML =
+    `<div style="font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:var(--ochre);margin-bottom:10px;">Standaard opties</div>` +
+    standardAngles.map(a =>
+      `<strong>${a.name}</strong>${a.recommended ? ' <span class="badge">Aanbevolen</span>' : ''}<br><em>${a.description}</em>`
+    ).join('<br><br>') +
+    `<br><br><div style="font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:var(--ochre);margin-bottom:10px;margin-top:4px;">✦ Aanbevolen op basis van jouw setting</div>` +
+    aiAngles.map(a =>
+      `<strong>${a.name}</strong>${a.recommended ? ' <span class="badge">Aanbevolen</span>' : ''}<br><em>${a.description}</em>`
+    ).join('<br><br>');
+
+  const grid = document.getElementById('angle-grid');
+  grid.innerHTML = '';
+
+  // Standard group label
+  const lbl1 = document.createElement('div');
+  lbl1.style.cssText = 'font-family:\'DM Mono\',monospace;font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:var(--ochre);padding:4px 0 8px;grid-column:1/-1;';
+  lbl1.textContent = 'Standaard opties';
+  grid.appendChild(lbl1);
+
+  standardAngles.forEach((angle, i) => {
+    const card = document.createElement('div');
+    card.className = 'choice-card fade-in';
+    card.style.animationDelay = `${i * 0.08}s`;
+    card.innerHTML = `
+      <div class="choice-title">${angle.name}${angle.recommended ? ' <span class="badge">★</span>' : ''}</div>
+      <div class="choice-desc">${angle.description}</div>
+    `;
+    card.onclick = () => {
+      document.querySelectorAll('#angle-grid .choice-card').forEach(c => c.classList.remove('selected'));
+      card.classList.add('selected');
+      selectedAngle = angle;
+      document.getElementById('btn-angle').disabled = false;
+    };
+    grid.appendChild(card);
+  });
+
+  // AI-recommended group label + cards
+  if (aiAngles.length) {
+    const lbl2 = document.createElement('div');
+    lbl2.style.cssText = 'font-family:\'DM Mono\',monospace;font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:var(--ochre);padding:12px 0 8px;grid-column:1/-1;';
+    lbl2.textContent = '✦ Aanbevolen op basis van jouw setting';
+    grid.appendChild(lbl2);
+
+    aiAngles.forEach((angle, i) => {
+      const card = document.createElement('div');
+      card.className = 'choice-card fade-in';
+      card.style.animationDelay = `${(standardAngles.length + i) * 0.08}s`;
+      card.innerHTML = `
+        <div class="choice-title">${angle.name}${angle.recommended ? ' <span class="badge">★</span>' : ''} <span class="badge" style="background:rgba(196,150,90,0.2);">AI</span></div>
+        <div class="choice-desc">${angle.description}</div>
+      `;
+      card.onclick = () => {
+        document.querySelectorAll('#angle-grid .choice-card').forEach(c => c.classList.remove('selected'));
+        card.classList.add('selected');
+        selectedAngle = angle;
+        document.getElementById('btn-angle').disabled = false;
+      };
+      grid.appendChild(card);
+    });
+  }
+
+  document.getElementById('step-2').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  animateProgress('prog-camera', 500);
+}
+
+// ── STEP 2: CONFIRM ANGLE ──────────────────────────────────────────────────────
+function confirmAngle() {
+  if (!selectedAngle) return;
+
+  setDots(3);
+  document.getElementById('step-3').classList.remove('hidden');
+  document.getElementById('block-placement').classList.remove('hidden');
+  document.getElementById('block-placement').classList.add('active');
+
+  const placementOutput = document.getElementById('placement-text');
+  placementOutput.classList.remove('placeholder');
+  placementOutput.innerHTML = analysisData.placements.map(p =>
+    `<strong>${p.name}</strong>${p.recommended ? ' <span class="badge">Recommended</span>' : ''}<br><em>${p.description}</em>`
+  ).join('<br><br>');
+
+  const grid = document.getElementById('placement-grid');
+  grid.innerHTML = '';
+
+  analysisData.placements.forEach((placement, i) => {
+    const card = document.createElement('div');
+    card.className = 'choice-card fade-in';
+    card.style.animationDelay = `${i * 0.08}s`;
+    card.innerHTML = `
+      <div class="choice-title">${placement.name}${placement.recommended ? ' <span class="badge">★</span>' : ''}</div>
+      <div class="choice-desc">${placement.description}</div>
+    `;
+    card.onclick = () => {
+      document.querySelectorAll('#placement-grid .choice-card').forEach(c => c.classList.remove('selected'));
+      card.classList.add('selected');
+      selectedPlacement = placement;
+      document.getElementById('btn-placement').disabled = false;
+    };
+    grid.appendChild(card);
+  });
+
+  document.getElementById('step-3').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  animateProgress('prog-placement', 500);
+}
+
+// ── STEP 3: GENERATE PROMPT ────────────────────────────────────────────────────
+async function generatePrompt() {
+  if (!selectedAngle || !selectedPlacement) return;
+
+  const btn = document.getElementById('btn-placement');
+  btn.disabled = true;
+  btn.textContent = 'Generating...';
+
+  document.getElementById('block-prompt').classList.remove('hidden');
+  document.getElementById('block-prompt').classList.add('active');
+  const promptEl = document.getElementById('prompt-text');
+  promptEl.classList.remove('placeholder');
+  promptEl.innerHTML = '<div class="loading-dots"><span></span><span></span><span></span></div>';
+
+  animateProgress('prog-prompt', 8000);
+
+  try {
+    const res = await fetch('/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        imageBase64: uploadedImageBase64,
+        mimeType: uploadedMimeType,
+        analysisDescription: analysisData.description,
+        selectedAngle,
+        selectedPlacement
+      })
+    });
+
+    const json = await res.json();
+
+    if (!json.success) {
+      promptEl.innerHTML = `<div class="error-msg">Error: ${json.error}</div>`;
+      btn.textContent = 'Generate master prompt →';
+      btn.disabled = false;
+      return;
+    }
+
+    promptEl.textContent = json.prompt;
+    promptEl.classList.remove('placeholder');
+    document.getElementById('block-prompt').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  } catch (err) {
+    promptEl.innerHTML = `<div class="error-msg">Connection error.<br>${err.message}</div>`;
+    console.error(err);
+  }
+
+  btn.textContent = 'Generate master prompt →';
+  btn.disabled = false;
+}
+
+// ── COPY & DOWNLOAD ────────────────────────────────────────────────────────────
+function copyPrompt() {
+  const text = document.getElementById('prompt-text').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.querySelectorAll('.btn-copy')[0];
+    btn.textContent = 'Copied ✓';
+    setTimeout(() => btn.textContent = 'Copy', 2000);
+  });
+}
+
+function downloadPrompt() {
+  const text = document.getElementById('prompt-text').textContent;
+  if (!text || text.includes('Waiting')) return;
+  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'master-prompt.txt';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ── PROGRESS ───────────────────────────────────────────────────────────────────
+function animateProgress(id, duration) {
+  const el = document.getElementById(id);
+  el.style.width = '0%';
+  el.style.transition = 'none';
+  setTimeout(() => {
+    el.style.transition = `width ${duration}ms ease`;
+    el.style.width = '100%';
+  }, 50);
+}
+</script>
+
+</body>
+</html>
