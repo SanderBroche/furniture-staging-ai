@@ -10,6 +10,13 @@ const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemi
 app.use(express.json({ limit: '25mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Fallback: also serve from root (for Vercel where index.html is at root)
+app.get('/', (req, res) => {
+  const rootHtml = path.join(__dirname, 'public', 'index.html');
+  const fallbackHtml = path.join(__dirname, 'index.html');
+  res.sendFile(require('fs').existsSync(rootHtml) ? rootHtml : fallbackHtml);
+});
+
 // ── ANALYZE IMAGE ──────────────────────────────────────────────────────────────
 app.post('/api/analyze', async (req, res) => {
   const { imageBase64, mimeType } = req.body;
