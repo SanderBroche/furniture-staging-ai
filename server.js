@@ -4,8 +4,8 @@ const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
+const GROQ_API_KEY = process.env.GROQ_API_KEY;
+const GROQ_URL = `https://api.groq.com/openai/v1/chat/completions`;
 
 app.use(express.json({ limit: '25mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -22,8 +22,8 @@ app.post('/api/analyze', async (req, res) => {
   const { imageBase64, mimeType } = req.body;
 
   if (!imageBase64) return res.status(400).json({ error: 'No image provided.' });
-  if (!GEMINI_API_KEY || GEMINI_API_KEY === 'your_gemini_api_key_here') {
-    return res.status(500).json({ error: 'API key not configured. Add your Gemini key to the .env file.' });
+  if (!GROQ_API_KEY) {
+    return res.status(500).json({ error: 'API key not configured.' });
   }
 
   const prompt = `Je bent een expert art director voor luxe meubelstyling en architecturale fotografie. Analyseer deze afbeelding alsof je de setting beschrijft voor een high-end meubelcampagne. Wees zo concreet en visueel specifiek als mogelijk voor PRECIES DEZE omgeving.
@@ -38,24 +38,29 @@ Gebruik exact dit JSON formaat zonder enige afwijking:
 {"description":"[280-350 woorden lopende tekst]","cameraAngles":[{"name":"[naam 3-5 woorden]","description":"[2-3 zinnen: exacte camerapositie en hoogte, kijkrichting, welke specifieke elementen van DEZE omgeving op voor-midden-achtergrond komen, waarom deze hoek de ruimte optimaal toont]","recommended":true},{"name":"[naam]","description":"[zelfde specificiteit, verwijzend naar elementen in de afbeelding]","recommended":false},{"name":"[naam]","description":"[zelfde specificiteit]","recommended":false},{"name":"[naam]","description":"[zelfde specificiteit]","recommended":false}],"placements":[{"name":"[naam 3-5 woorden]","description":"[2-3 zinnen: exacte positie bij welk specifiek architecturaal element, afstand van wanden of ramen, relatie tot de lichtbron, compositieeffect]","recommended":true},{"name":"[naam]","description":"[zelfde specificiteit]","recommended":false},{"name":"[naam]","description":"[zelfde specificiteit]","recommended":false},{"name":"[naam]","description":"[zelfde specificiteit]","recommended":false}]}`;
 
   try {
-    const response = await fetch(GEMINI_URL, {
+    const response = await fetch(GROQ_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${GROQ_API_KEY}`
+      },
       body: JSON.stringify({
-        contents: [{
-          parts: [
-            { inline_data: { mime_type: mimeType || 'image/jpeg', data: imageBase64 } },
-            { text: prompt }
+        model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+        max_tokens: 2000,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image_url', image_url: { url: `data:${mimeType || 'image/jpeg'};base64,${imageBase64}` } },
+            { type: 'text', text: prompt }
           ]
         }]
       })
     });
 
     const data = await response.json();
-
     if (data.error) return res.status(500).json({ error: data.error.message });
 
-    const text = data.candidates[0].content.parts.map(p => p.text || '').join('');
+    const text = data.choices[0].message.content;
     const clean = text.replace(/```json|```/g, '').trim();
     const analysisData = JSON.parse(clean);
 
@@ -71,7 +76,7 @@ app.post('/api/generate', async (req, res) => {
   const { imageBase64, mimeType, analysisDescription, selectedAngle, selectedPlacement } = req.body;
 
   if (!imageBase64) return res.status(400).json({ error: 'No image provided.' });
-  if (!GEMINI_API_KEY || GEMINI_API_KEY === 'your_gemini_api_key_here') {
+  if (!GROQ_API_KEY) {
     return res.status(500).json({ error: 'API key not configured.' });
   }
 
@@ -121,24 +126,29 @@ NEGATIVE PROMPT:
 No distortion, no warped geometry, no unrealistic lighting, no CGI look, no artificial symmetry, no floating objects, no incorrect perspective, no overexposed highlights, no harsh shadows, no clutter, no low-detail surfaces, no furniture modifications, no altered proportions, no colour shifts on furniture, no added or removed furniture elements`;
 
   try {
-    const response = await fetch(GEMINI_URL, {
+    const response = await fetch(GROQ_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${GROQ_API_KEY}`
+      },
       body: JSON.stringify({
-        contents: [{
-          parts: [
-            { inline_data: { mime_type: mimeType || 'image/jpeg', data: imageBase64 } },
-            { text: prompt }
+        model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+        max_tokens: 2000,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image_url', image_url: { url: `data:${mimeType || 'image/jpeg'};base64,${imageBase64}` } },
+            { type: 'text', text: prompt }
           ]
         }]
       })
     });
 
     const data = await response.json();
-
     if (data.error) return res.status(500).json({ error: data.error.message });
 
-    const text = data.candidates[0].content.parts.map(p => p.text || '').join('');
+    const text = data.choices[0].message.content;
     res.json({ success: true, prompt: text });
   } catch (err) {
     console.error('Generate error:', err);
